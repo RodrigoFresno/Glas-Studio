@@ -21,24 +21,44 @@ void main(){
  else if(u_shape==2) d=sdRoundBox(q,vec2(.88),u_round*.018);
  else if(u_shape==3) d=sdDiamond(q);
  else {float k=4.5; d=(pow(pow(abs(q.x),k)+pow(abs(q.y),k),1./k)-.94);}
- float aa=max(fwidth(d)*1.5,.001); float mask=1.-smoothstep(0.,aa,d); if(mask<=.001){outColor=vec4(0.);return;}
- float edge=1.-smoothstep(.0,.13,abs(d)); float inner=1.-smoothstep(-.20,-.01,d);
+ float aa=max(fwidth(d)*1.5,.001);
+ float mask=1.-smoothstep(0.,aa,d);
+ float edge=1.-smoothstep(.0,.16,abs(d));
+ float inner=1.-smoothstep(-.24,-.015,d);
  vec2 normal=normalize(vec2(dFdx(d),dFdy(d))+vec2(.0001));
  float wave=sin(q.x*8.+u_time*.4)*cos(q.y*7.-u_time*.32);
- vec2 bend=normal*(.008+u_refract*.00055)*(1.+wave*u_distort*.018);
- vec2 sampleUV=uv+bend; if(u_imageAspect>1.001) sampleUV.x=.5+(sampleUV.x-.5)/u_imageAspect; else if(u_imageAspect<.999) sampleUV.y=.5+(sampleUV.y-.5)*u_imageAspect;
- vec3 base=vec3(.12,.22,.34);
- if(u_hasImage){base=texture(u_image,clamp(sampleUV,0.001,0.999)).rgb; if(u_blur>0.01){vec2 px=1./u_resolution*(u_blur*.55); vec3 b=base; b+=texture(u_image,clamp(sampleUV+vec2(px.x,0.),.001,.999)).rgb; b+=texture(u_image,clamp(sampleUV-vec2(px.x,0.),.001,.999)).rgb; b+=texture(u_image,clamp(sampleUV+vec2(0.,px.y),.001,.999)).rgb; b+=texture(u_image,clamp(sampleUV-vec2(0.,px.y),.001,.999)).rgb; base=mix(base,b/5.,.62);}}
- vec3 tint=u_tint; float tintMix=u_opacity*.0038;
+ vec2 bend=normal*(.012+u_refract*.00085)*(1.+wave*u_distort*.025);
+ vec2 sampleUV=uv+bend;
+ if(u_imageAspect>1.001) sampleUV.x=.5+(sampleUV.x-.5)/u_imageAspect;
+ else if(u_imageAspect<.999) sampleUV.y=.5+(sampleUV.y-.5)*u_imageAspect;
+ vec3 base=vec3(.20,.42,.62);
+ float sourceAlpha=1.;
+ if(u_hasImage){
+   vec4 tex=texture(u_image,clamp(sampleUV,0.001,0.999));
+   base=tex.rgb; sourceAlpha=tex.a;
+   if(u_blur>0.01){
+     vec2 px=1./u_resolution*(u_blur*.75);
+     vec3 b=base;
+     b+=texture(u_image,clamp(sampleUV+vec2(px.x,0.),.001,.999)).rgb;
+     b+=texture(u_image,clamp(sampleUV-vec2(px.x,0.),.001,.999)).rgb;
+     b+=texture(u_image,clamp(sampleUV+vec2(0.,px.y),.001,.999)).rgb;
+     b+=texture(u_image,clamp(sampleUV-vec2(0.,px.y),.001,.999)).rgb;
+     base=mix(base,b/5.,.55);
+   }
+ }
+ vec3 tint=u_tint;
+ float tintMix=.10+u_opacity*.0045;
  vec3 color=mix(base,tint,tintMix);
- float fresnel=pow(1.-abs(dot(normalize(vec3(normal,1.)),vec3(0.,0.,1.))),3.);
- float rim=edge*u_glow*.010 + pow(max(0.,1.-abs(d)*5.),4.)*u_glow*.10;
- float spec=pow(max(0.,1.-length(q-vec2(-.28,.34))*1.7),18.)*.55 + pow(max(0.,1.-length(q-vec2(.55,-.52))*2.2),24.)*.3;
- float streak=pow(max(0.,1.-abs(q.y+q.x*.22-.62)*15.),12.)*.20;
+ float fresnel=pow(1.-abs(dot(normalize(vec3(normal,1.)),vec3(0.,0.,1.))),2.);
+ float rim=edge*(.45+u_glow*.018)+pow(max(0.,1.-abs(d)*5.),4.)*(.18+u_glow*.012);
+ float spec=pow(max(0.,1.-length(q-vec2(-.28,.34))*1.7),18.)*.75
+          +pow(max(0.,1.-length(q-vec2(.55,-.52))*2.2),24.)*.45;
+ float streak=pow(max(0.,1.-abs(q.y+q.x*.22-.62)*15.),12.)*.28;
  float grain=(hash(gl_FragCoord.xy+u_time)-.5)*u_noise*.002;
- color+=tint*(rim+fresnel*.08)+vec3(1.)*(spec+streak)*(.35+u_glow*.008)+grain;
- color+=vec3(.025,.10,.18)*inner*u_opacity*.0015;
- float alpha=mask*clamp(.25+u_opacity*.006+edge*.42*u_glow*.01+spec*.22,0.,.98);
+ color+=tint*(rim+fresnel*.12)+vec3(1.)*(spec+streak)*(.45+u_glow*.009)+grain;
+ color+=vec3(.025,.10,.18)*inner*u_opacity*.002;
+ float alpha=mask*sourceAlpha*clamp(.48+u_opacity*.004+edge*(.25+u_glow*.006)+spec*.16,0.,.99);
+ if(mask<=.001 || sourceAlpha<=.001){outColor=vec4(0.);return;}
  outColor=vec4(clamp(color,0.,1.),alpha);
 }`;
   function shader(type, source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s;}
@@ -82,7 +102,7 @@ void main(){
   function setVal(id,key){$(id).addEventListener('input',e=>{state[key]=+e.target.value;$(id+'Val').textContent=e.target.value+'%';refresh();});}
   ['width','height','round','refract','blur','distort','opacity','glow','noise'].forEach(id=>setVal(id,id));
   $('shapeGrid').addEventListener('click',e=>{const b=e.target.closest('[data-shape]');if(!b)return;state.shape=b.dataset.shape;document.querySelectorAll('.shape-option').forEach(x=>x.classList.toggle('selected',x===b));refresh();});
-  $('imageInput').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{imageBitmap=await createImageBitmap(file);gl.bindTexture(gl.TEXTURE_2D,texture);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,imageBitmap);gl.generateMipmap(gl.TEXTURE_2D);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);$('uploadZone').querySelector('strong').textContent=file.name;refresh();toast('Imagem carregada. O exterior da forma continua transparente.');}catch(err){toast('Não foi possível abrir essa imagem.');}});
+  $('imageInput').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{imageBitmap=await createImageBitmap(file);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,texture);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,imageBitmap);$('uploadZone').querySelector('strong').textContent=file.name;refresh();toast('Imagem carregada. O exterior da forma continua transparente.');}catch(err){toast('Não foi possível abrir essa imagem.');}});
   $('tintColor').addEventListener('input',e=>{state.tint=e.target.value;refresh();});$('clearTint').onclick=()=>{$('tintColor').value='#8edbff';state.tint='#8edbff';refresh();};
   $('resetBtn').onclick=()=>{Object.assign(state,{shape:'squircle',width:72,height:72,round:28,refract:42,blur:8,distort:35,opacity:32,glow:75,noise:12,tint:'#8edbff'});for(const k of ['width','height','round','refract','blur','distort','opacity','glow','noise']){$(k).value=state[k];$(k+'Val').textContent=state[k]+'%';}document.querySelectorAll('.shape-option').forEach(b=>b.classList.toggle('selected',b.dataset.shape==='squircle'));$('tintColor').value=state.tint;refresh();toast('Ajustes restaurados.');};
   $('checkerBtn').onclick=()=>{wrap.classList.toggle('checkerboard');$('checkerBtn').classList.toggle('active');};$('centerBtn').onclick=refresh;$('zoomSelect').onchange=refresh;
