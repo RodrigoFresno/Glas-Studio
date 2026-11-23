@@ -41,18 +41,13 @@
           <button class="shape-option" data-shape="rounded" title="Retângulo arredondado"><span class="shape rounded"></span></button>
           <button class="shape-option" data-shape="diamond" title="Diamante"><span class="shape diamond"></span></button>
         </div>
-        <div class="section-title space-top">TEXTO / LOGO</div>
-        <input class="text-input" id="logoText" type="text" maxlength="18" placeholder="Seu texto ou logo" value="G">
-        <div class="inline-fields"><label>Fonte<select id="fontFamily"><option value="Arial">Moderna</option><option value="Georgia">Serifada</option><option value="monospace">Monoespaçada</option></select></label><label>Tamanho<input id="fontSize" type="number" min="8" max="240" value="112"></label></div>
-        <label class="toggle-row"><span>Mostrar texto</span><input id="showText" type="checkbox" checked><i></i></label>
       </aside>
 
       <section class="stage-area">
         <div class="stage-toolbar"><div><span class="live-dot"></span><b>PRÉ-VISUALIZAÇÃO</b><span class="muted" id="stageMode">· Fundo transparente</span></div><div class="stage-tools"><button class="tool-btn active" id="checkerBtn" title="Alternar transparência">▦</button><button class="tool-btn" id="centerBtn" title="Centralizar">⊙</button><select id="zoomSelect" aria-label="Zoom"><option value="fit">Ajustar</option><option value="1">100%</option><option value="1.5">150%</option></select></div></div>
         <div class="canvas-wrap checkerboard" id="canvasWrap">
           <canvas id="glassCanvas" aria-label="Prévia do vidro líquido"></canvas>
-          <canvas id="textCanvas" aria-hidden="true"></canvas>
-          <div class="empty-hint" id="emptyHint"><span>◈</span><b>Seu vidro começa aqui</b><small>Adicione uma imagem ou personalize a forma e o texto.</small></div>
+          <div class="empty-hint" id="emptyHint"><span>◈</span><b>Seu vidro começa aqui</b><small>Escolha uma forma e ajuste o vidro nos controles ao lado.</small></div>
         </div>
         <div class="stage-footer"><span id="dimensionLabel">Prévia · 1200 × 1200</span><span>RGBA · Transparência real</span></div>
       </section>
