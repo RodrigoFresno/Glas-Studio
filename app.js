@@ -48,7 +48,6 @@ void main(){
     if(!gl||!program)return;
     const resized = canvas.width!==width || canvas.height!==height;
     if(resized){canvas.width=width;canvas.height=height;}
-    if(textCanvas.width!==width || textCanvas.height!==height){textCanvas.width=width;textCanvas.height=height;}
     gl.viewport(0,0,width,height);
     gl.clearColor(0,0,0,0);
     gl.clear(gl.COLOR_BUFFER_BIT);
