@@ -44,7 +44,37 @@ void main(){
   function shader(type, source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s;}
   function initGL(){if(!gl){toast('Seu navegador não oferece WebGL 2. Tente Chrome, Edge ou Safari atualizado.');return false;}program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,vertex));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program));gl.useProgram(program);positionBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,positionBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);const loc=gl.getAttribLocation(program,'a_position');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);texture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,texture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([25,40,60,255]));gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.enable(gl.BLEND);gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);return true;}
   function hexRGB(hex){return [parseInt(hex.slice(1,3),16)/255,parseInt(hex.slice(3,5),16)/255,parseInt(hex.slice(5,7),16)/255];}
-  function render(width,height,time=performance.now()/1000){if(!gl||!program)return;canvas.width=width;canvas.height=height;textCanvas.width=width;textCanvas.height=height;gl.viewport(0,0,width,height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.useProgram(program);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,texture);const set=(n,v)=>gl.uniform1f(gl.getUniformLocation(program,n),v);const set2=(n,a,b)=>gl.uniform2f(gl.getUniformLocation(program,n),a,b);set2('u_resolution',width,height);set('u_time',time);set('u_imageAspect',imageBitmap?imageBitmap.width/imageBitmap.height:1);gl.uniform1i(gl.getUniformLocation(program,'u_image'),0);gl.uniform1i(gl.getUniformLocation(program,'u_hasImage'),imageBitmap?1:0);set('u_width',state.width);set('u_height',state.height);set('u_round',state.round);set('u_refract',state.refract);set('u_blur',state.blur);set('u_distort',state.distort);set('u_opacity',state.opacity);set('u_glow',state.glow);set('u_noise',state.noise);gl.uniform3fv(gl.getUniformLocation(program,'u_tint'),hexRGB(state.tint));gl.uniform1i(gl.getUniformLocation(program,'u_shape'),({squircle:0,circle:1,rounded:2,diamond:3})[state.shape]);drawText(width,height);}
+  function render(width,height,time=performance.now()/1000){
+    if(!gl||!program)return;
+    const resized = canvas.width!==width || canvas.height!==height;
+    if(resized){canvas.width=width;canvas.height=height;}
+    if(textCanvas.width!==width || textCanvas.height!==height){textCanvas.width=width;textCanvas.height=height;}
+    gl.viewport(0,0,width,height);
+    gl.clearColor(0,0,0,0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER,positionBuffer);
+    const loc=gl.getAttribLocation(program,'a_position');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+    gl.enable(gl.BLEND);
+    gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D,texture);
+    const set=(n,v)=>gl.uniform1f(gl.getUniformLocation(program,n),v);
+    const set2=(n,a,b)=>gl.uniform2f(gl.getUniformLocation(program,n),a,b);
+    set2('u_resolution',width,height);
+    set('u_time',time);
+    set('u_imageAspect',imageBitmap?imageBitmap.width/imageBitmap.height:1);
+    gl.uniform1i(gl.getUniformLocation(program,'u_image'),0);
+    gl.uniform1i(gl.getUniformLocation(program,'u_hasImage'),imageBitmap?1:0);
+    set('u_width',state.width);set('u_height',state.height);set('u_round',state.round);
+    set('u_refract',state.refract);set('u_blur',state.blur);set('u_distort',state.distort);
+    set('u_opacity',state.opacity);set('u_glow',state.glow);set('u_noise',state.noise);
+    gl.uniform3fv(gl.getUniformLocation(program,'u_tint'),hexRGB(state.tint));
+    gl.uniform1i(gl.getUniformLocation(program,'u_shape'),({squircle:0,circle:1,rounded:2,diamond:3})[state.shape]);
+    drawText(width,height);
+  }
   function drawText(w,h){const ctx=textCanvas.getContext('2d');ctx.clearRect(0,0,w,h);if(!$('showText').checked)return;const txt=$('logoText').value;if(!txt)return;const size=+$('fontSize').value||112;const family=$('fontFamily').value;ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`700 ${size}px ${family}`;ctx.shadowColor='rgba(90,210,255,.85)';ctx.shadowBlur=size*.12;ctx.lineWidth=Math.max(1,size*.035);ctx.strokeStyle='rgba(255,255,255,.88)';ctx.fillStyle='rgba(226,248,255,.30)';ctx.strokeText(txt,w/2,h/2,w*.72);ctx.fillText(txt,w/2,h/2,w*.72);ctx.restore();}
   function fit(){const r=wrap.getBoundingClientRect();const side=Math.max(320,Math.floor(Math.min(r.width*.8,r.height*.84)));render(side,side);$('dimensionLabel').textContent=`Prévia · ${side} × ${side}`;}
   function refresh(){const w=Math.max(320,Math.floor(Math.min(wrap.clientWidth*.8,wrap.clientHeight*.84)));render(w,w);$('emptyHint').style.display= imageBitmap?'none':'flex';$('stageMode').textContent=imageBitmap?'· Imagem + vidro':'· Fundo transparente';}
