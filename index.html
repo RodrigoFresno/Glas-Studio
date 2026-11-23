@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080b13">
+  <meta name="description" content="Glass Studio — editor de efeitos de vidro líquido com exportação PNG transparente.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+  <title>Glass Studio</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Glass Studio início">
+        <img src="assets/icons/icon-192.png" alt="" class="brand-icon">
+        <span>glass<span class="brand-light">studio</span><small>LIQUID GLASS EDITOR</small></span>
+      </a>
+      <div class="top-actions">
+        <span class="save-state" id="saveState">● Projeto local</span>
+        <button class="btn btn-quiet" id="installBtn" hidden>Instalar app</button>
+        <button class="btn btn-primary" id="exportBtn"><span>↓</span> Exportar PNG</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar left-panel">
+        <div class="panel-heading"><span>PROJETO</span><button class="icon-btn" id="resetBtn" title="Restaurar padrão">↺</button></div>
+        <label class="upload-zone" for="imageInput" id="uploadZone">
+          <span class="upload-icon">＋</span><strong>Adicionar imagem</strong><small>PNG, JPG ou WebP</small>
+          <input type="file" id="imageInput" accept="image/png,image/jpeg,image/webp" hidden>
+        </label>
+        <div class="section-title">CAMADA DE VIDRO</div>
+        <div class="layer-card active"><span class="layer-thumb">◈</span><span><b>Glass Shape</b><small>Vidro líquido</small></span><span class="layer-eye">◉</span></div>
+        <div class="section-title space-top">FORMA</div>
+        <div class="shape-grid" id="shapeGrid">
+          <button class="shape-option selected" data-shape="squircle" title="Squircle"><span class="shape squircle"></span></button>
+          <button class="shape-option" data-shape="circle" title="Círculo"><span class="shape circle"></span></button>
+          <button class="shape-option" data-shape="rounded" title="Retângulo arredondado"><span class="shape rounded"></span></button>
+          <button class="shape-option" data-shape="diamond" title="Diamante"><span class="shape diamond"></span></button>
+        </div>
+        <div class="section-title space-top">TEXTO / LOGO</div>
+        <input class="text-input" id="logoText" type="text" maxlength="18" placeholder="Seu texto ou logo" value="G">
+        <div class="inline-fields"><label>Fonte<select id="fontFamily"><option value="Arial">Moderna</option><option value="Georgia">Serifada</option><option value="monospace">Monoespaçada</option></select></label><label>Tamanho<input id="fontSize" type="number" min="8" max="240" value="112"></label></div>
+        <label class="toggle-row"><span>Mostrar texto</span><input id="showText" type="checkbox" checked><i></i></label>
+      </aside>
+
+      <section class="stage-area">
+        <div class="stage-toolbar"><div><span class="live-dot"></span><b>PRÉ-VISUALIZAÇÃO</b><span class="muted" id="stageMode">· Fundo transparente</span></div><div class="stage-tools"><button class="tool-btn active" id="checkerBtn" title="Alternar transparência">▦</button><button class="tool-btn" id="centerBtn" title="Centralizar">⊙</button><select id="zoomSelect" aria-label="Zoom"><option value="fit">Ajustar</option><option value="1">100%</option><option value="1.5">150%</option></select></div></div>
+        <div class="canvas-wrap checkerboard" id="canvasWrap">
+          <canvas id="glassCanvas" aria-label="Prévia do vidro líquido"></canvas>
+          <canvas id="textCanvas" aria-hidden="true"></canvas>
+          <div class="empty-hint" id="emptyHint"><span>◈</span><b>Seu vidro começa aqui</b><small>Adicione uma imagem ou personalize a forma e o texto.</small></div>
+        </div>
+        <div class="stage-footer"><span id="dimensionLabel">Prévia · 1200 × 1200</span><span>RGBA · Transparência real</span></div>
+      </section>
+
+      <aside class="sidebar right-panel">
+        <div class="panel-heading"><span>AJUSTES DO VIDRO</span><span class="tiny-pill">LIVE</span></div>
+        <div class="control-section"><div class="control-title">GEOMETRIA <span>⌄</span></div>
+          <label class="range-row"><span>Largura <output id="widthVal">72%</output></span><input type="range" id="width" min="20" max="96" value="72"></label>
+          <label class="range-row"><span>Altura <output id="heightVal">72%</output></span><input type="range" id="height" min="20" max="96" value="72"></label>
+          <label class="range-row"><span>Arredondamento <output id="roundVal">28%</output></span><input type="range" id="round" min="0" max="50" value="28"></label>
+        </div>
+        <div class="control-section"><div class="control-title">REFRAÇÃO <span>⌄</span></div>
+          <label class="range-row"><span>Intensidade <output id="refractVal">42%</output></span><input type="range" id="refract" min="0" max="100" value="42"></label>
+          <label class="range-row"><span>Desfoque <output id="blurVal">8%</output></span><input type="range" id="blur" min="0" max="30" value="8"></label>
+          <label class="range-row"><span>Distorção <output id="distortVal">35%</output></span><input type="range" id="distort" min="0" max="100" value="35"></label>
+        </div>
+        <div class="control-section"><div class="control-title">APARÊNCIA <span>⌄</span></div>
+          <label class="range-row"><span>Opacidade <output id="opacityVal">32%</output></span><input type="range" id="opacity" min="0" max="100" value="32"></label>
+          <label class="range-row"><span>Brilho de borda <output id="glowVal">75%</output></span><input type="range" id="glow" min="0" max="100" value="75"></label>
+          <label class="range-row"><span>Ruído <output id="noiseVal">12%</output></span><input type="range" id="noise" min="0" max="40" value="12"></label>
+          <div class="color-row"><label for="tintColor">Tonalidade</label><input type="color" id="tintColor" value="#8edbff"><button id="clearTint" class="text-button">Neutro</button></div>
+        </div>
+        <div class="control-section"><div class="control-title">EXPORTAÇÃO <span>⌄</span></div>
+          <label class="select-row">Resolução<select id="exportSize"><option value="2048">2K · 2048 × 2048</option><option value="4096" selected>4K · 4096 × 4096</option><option value="3000">3000 × 3000</option></select></label>
+          <div class="export-note"><span>✓</span> PNG com canal alfa preservado</div>
+        </div>
+        <button class="btn btn-export" id="exportBtnSide">Exportar PNG transparente <span>↗</span></button>
+      </aside>
+    </main>
+    <footer class="bottom-bar"><span>GLASS STUDIO <span class="muted">· BETA 0.1</span></span><span>Feito para criar. Exportado com transparência.</span></footer>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
