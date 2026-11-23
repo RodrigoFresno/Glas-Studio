@@ -1,6 +1,6 @@
 (() => {
   const $ = id => document.getElementById(id);
-  const canvas = $('glassCanvas'), textCanvas = $('textCanvas'), wrap = $('canvasWrap');
+  const canvas = $('glassCanvas'), wrap = $('canvasWrap');
   const gl = canvas.getContext('webgl2', {alpha:true, premultipliedAlpha:false, antialias:true, preserveDrawingBuffer:true});
   const state = {shape:'squircle', width:72, height:72, round:28, refract:42, blur:8, distort:35, opacity:32, glow:75, noise:12, tint:'#8edbff', image:null, imageTexture:null, imageAspect:1, showText:true, zoom:'fit'};
   let program, positionBuffer, texture, imageBitmap=null, pendingInstall=null, toastTimer;
@@ -73,9 +73,10 @@ void main(){
     set('u_opacity',state.opacity);set('u_glow',state.glow);set('u_noise',state.noise);
     gl.uniform3fv(gl.getUniformLocation(program,'u_tint'),hexRGB(state.tint));
     gl.uniform1i(gl.getUniformLocation(program,'u_shape'),({squircle:0,circle:1,rounded:2,diamond:3})[state.shape]);
-    drawText(width,height);
+    // Draw the actual glass mesh. Without this call the canvas stays transparent,
+    // so shape selection and imported images appear to do nothing.
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
   }
-  function drawText(w,h){const ctx=textCanvas.getContext('2d');ctx.clearRect(0,0,w,h);if(!$('showText').checked)return;const txt=$('logoText').value;if(!txt)return;const size=+$('fontSize').value||112;const family=$('fontFamily').value;ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`700 ${size}px ${family}`;ctx.shadowColor='rgba(90,210,255,.85)';ctx.shadowBlur=size*.12;ctx.lineWidth=Math.max(1,size*.035);ctx.strokeStyle='rgba(255,255,255,.88)';ctx.fillStyle='rgba(226,248,255,.30)';ctx.strokeText(txt,w/2,h/2,w*.72);ctx.fillText(txt,w/2,h/2,w*.72);ctx.restore();}
   function fit(){const r=wrap.getBoundingClientRect();const side=Math.max(320,Math.floor(Math.min(r.width*.8,r.height*.84)));render(side,side);$('dimensionLabel').textContent=`Prévia · ${side} × ${side}`;}
   function refresh(){const w=Math.max(320,Math.floor(Math.min(wrap.clientWidth*.8,wrap.clientHeight*.84)));render(w,w);$('emptyHint').style.display= imageBitmap?'none':'flex';$('stageMode').textContent=imageBitmap?'· Imagem + vidro':'· Fundo transparente';}
   function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2600);}
@@ -84,10 +85,9 @@ void main(){
   $('shapeGrid').addEventListener('click',e=>{const b=e.target.closest('[data-shape]');if(!b)return;state.shape=b.dataset.shape;document.querySelectorAll('.shape-option').forEach(x=>x.classList.toggle('selected',x===b));refresh();});
   $('imageInput').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{imageBitmap=await createImageBitmap(file);gl.bindTexture(gl.TEXTURE_2D,texture);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,imageBitmap);gl.generateMipmap(gl.TEXTURE_2D);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);$('uploadZone').querySelector('strong').textContent=file.name;refresh();toast('Imagem carregada. O exterior da forma continua transparente.');}catch(err){toast('Não foi possível abrir essa imagem.');}});
   $('tintColor').addEventListener('input',e=>{state.tint=e.target.value;refresh();});$('clearTint').onclick=()=>{$('tintColor').value='#8edbff';state.tint='#8edbff';refresh();};
-  ['logoText','fontSize','fontFamily','showText'].forEach(id=>$(id).addEventListener('input',refresh));
   $('resetBtn').onclick=()=>{Object.assign(state,{shape:'squircle',width:72,height:72,round:28,refract:42,blur:8,distort:35,opacity:32,glow:75,noise:12,tint:'#8edbff'});for(const k of ['width','height','round','refract','blur','distort','opacity','glow','noise']){$(k).value=state[k];$(k+'Val').textContent=state[k]+'%';}document.querySelectorAll('.shape-option').forEach(b=>b.classList.toggle('selected',b.dataset.shape==='squircle'));$('tintColor').value=state.tint;refresh();toast('Ajustes restaurados.');};
   $('checkerBtn').onclick=()=>{wrap.classList.toggle('checkerboard');$('checkerBtn').classList.toggle('active');};$('centerBtn').onclick=refresh;$('zoomSelect').onchange=refresh;
-  async function exportPNG(){const size=+$('exportSize').value||4096;try{render(size,size);await new Promise(r=>requestAnimationFrame(r));const out=document.createElement('canvas');out.width=size;out.height=size;const c=out.getContext('2d');c.clearRect(0,0,size,size);c.drawImage(canvas,0,0,size,size);c.drawImage(textCanvas,0,0,size,size);const blob=await new Promise(resolve=>out.toBlob(resolve,'image/png'));if(!blob)throw new Error('Falha ao gerar PNG');const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`glass-studio-${size}x${size}.png`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);toast(`PNG ${size} × ${size} exportado com transparência.`);refresh();}catch(err){console.error(err);toast('Falha ao exportar. Tente uma resolução menor.');}}
+  async function exportPNG(){const size=+$('exportSize').value||4096;try{render(size,size);await new Promise(r=>requestAnimationFrame(r));const out=document.createElement('canvas');out.width=size;out.height=size;const c=out.getContext('2d');c.clearRect(0,0,size,size);c.drawImage(canvas,0,0,size,size);const blob=await new Promise(resolve=>out.toBlob(resolve,'image/png'));if(!blob)throw new Error('Falha ao gerar PNG');const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`glass-studio-${size}x${size}.png`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);toast(`PNG ${size} × ${size} exportado com transparência.`);refresh();}catch(err){console.error(err);toast('Falha ao exportar. Tente uma resolução menor.');}}
   $('exportBtn').onclick=exportPNG;$('exportBtnSide').onclick=exportPNG;
   window.addEventListener('resize',()=>{clearTimeout(window.__glassResize);window.__glassResize=setTimeout(refresh,100);});
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();pendingInstall=e;$('installBtn').hidden=false;});$('installBtn').onclick=async()=>{if(!pendingInstall)return;pendingInstall.prompt();await pendingInstall.userChoice;pendingInstall=null;$('installBtn').hidden=true;};
