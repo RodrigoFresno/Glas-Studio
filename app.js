@@ -69,8 +69,8 @@
    gl.uniform1i(loc.u_image,0);
  }
  function rgb(hex){return [parseInt(hex.slice(1,3),16)/255,parseInt(hex.slice(3,5),16)/255,parseInt(hex.slice(5,7),16)/255];}
- function draw(w,h){
-   const dpr=Math.min(window.devicePixelRatio||1,2),cw=Math.max(1,Math.round(w*dpr)),ch=Math.max(1,Math.round(h*dpr));
+ function draw(w,h,exporting=false){
+   const dpr=exporting?1:Math.min(window.devicePixelRatio||1,2),cw=Math.max(1,Math.round(w*dpr)),ch=Math.max(1,Math.round(h*dpr));
    if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
    gl.viewport(0,0,cw,ch);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.useProgram(program);
    gl.uniform2f(loc.u_resolution,cw,ch);gl.uniform2f(loc.u_size,state.width/100,state.height/100);
@@ -94,7 +94,7 @@
  $('tintColor').addEventListener('input',e=>{state.tint=e.target.value;refresh();});$('clearTint').onclick=()=>{$('tintColor').value='#8edbff';state.tint='#8edbff';refresh();};
  $('resetBtn').onclick=()=>{Object.assign(state,{shape:0,width:72,height:72,round:28,refract:42,blur:8,distort:35,opacity:32,glow:75,noise:12,tint:'#8edbff'});['width','height','round','refract','blur','distort','opacity','glow','noise'].forEach(k=>{$(k).value=state[k];$(k+'Val').textContent=state[k]+'%';});document.querySelectorAll('.shape-option').forEach(b=>b.classList.toggle('selected',b.dataset.shape==='squircle'));$('tintColor').value=state.tint;refresh();};
  $('checkerBtn').onclick=()=>{wrap.classList.toggle('checkerboard');$('checkerBtn').classList.toggle('active');};$('centerBtn').onclick=refresh;$('zoomSelect').onchange=refresh;
- async function exportPNG(){const size=+$('exportSize').value||4096;try{draw(size,size);const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));if(!blob)throw Error('Exportação falhou');const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='glass-studio-'+size+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);toast('PNG transparente exportado.');}catch(e){toast('Erro na exportação: '+e.message);}finally{refresh();}}
+ async function exportPNG(){const size=+$('exportSize').value||4096;try{draw(size,size,true);const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));if(!blob)throw Error('Exportação falhou');const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='glass-studio-'+size+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);toast('PNG transparente exportado.');}catch(e){toast('Erro na exportação: '+e.message);}finally{refresh();}}
  $('exportBtn').onclick=exportPNG;$('exportBtnSide').onclick=exportPNG;
  window.addEventListener('resize',()=>{clearTimeout(window.__glassResize);window.__glassResize=setTimeout(refresh,100);});
  let prompt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();prompt=e;$('installBtn').hidden=false;});$('installBtn').onclick=async()=>{if(prompt){prompt.prompt();await prompt.userChoice;prompt=null;}};
