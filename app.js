@@ -1,75 +1,103 @@
 (() => {
-  const $ = id => document.getElementById(id);
-  const canvas = $('glassCanvas'), wrap = $('canvasWrap');
-  const ctx = canvas.getContext('2d', {alpha:true, desynchronized:true});
-  const state = {shape:'squircle',width:72,height:72,round:28,refract:42,blur:8,distort:35,opacity:32,glow:75,noise:12,tint:'#8edbff'};
-  let sourceImage=null, toastTimer=null;
-  function hexRGB(hex){return [parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];}
-  function pathShape(c,x,y,w,h){
-    c.beginPath();
-    if(state.shape==='circle'){c.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2);}
-    else if(state.shape==='diamond'){c.moveTo(x+w/2,y);c.lineTo(x+w,y+h/2);c.lineTo(x+w/2,y+h);c.lineTo(x,y+h/2);c.closePath();}
-    else {const r=state.shape==='rounded'?Math.min(w,h)*.22:Math.min(w,h)*state.round/100*.72;c.roundRect(x,y,w,h,Math.min(r,w/2,h/2));}
-  }
-  function draw(width,height){
-    if(!ctx)return;
-    canvas.width=width;canvas.height=height;
-    const c=ctx,scale=width/1000;
-    c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,width,height);
-    const w=state.width/100*width,h=state.height/100*height,x=(width-w)/2,y=(height-h)/2;
-    c.save();pathShape(c,x,y,w,h);c.clip();
-    if(sourceImage){
-      const ar=sourceImage.width/sourceImage.height, box=w/h;
-      let dw=w,dh=h;if(ar>box){dh=h;dw=h*ar;}else{dw=w;dh=w/ar;}
-      c.filter=state.blur>0?'blur('+Math.max(0,state.blur*.12*scale)+'px)':'none';
-      c.drawImage(sourceImage,x+(w-dw)/2,y+(h-dh)/2,dw,dh);c.filter='none';
-    } else {
-      const bg=c.createLinearGradient(x,y,x+w,y+h);
-      bg.addColorStop(0,'rgba(210,246,255,.42)');bg.addColorStop(.48,'rgba(80,165,220,.24)');bg.addColorStop(1,'rgba(135,115,255,.34)');
-      c.fillStyle=bg;c.fillRect(x,y,w,h);
-    }
-    const [tr,tg,tb]=hexRGB(state.tint);
-    const tint=c.createLinearGradient(x,y,x+w,y+h);
-    tint.addColorStop(0,'rgba('+tr+','+tg+','+tb+','+(.05+state.opacity/100*.22)+')');
-    tint.addColorStop(1,'rgba(110,135,255,'+(.04+state.opacity/100*.16)+')');
-    c.fillStyle=tint;c.fillRect(x,y,w,h);
-    const shine=c.createLinearGradient(x,y,x+w*.72,y+h);
-    shine.addColorStop(0,'rgba(255,255,255,'+(.22+state.glow/100*.36)+')');
-    shine.addColorStop(.22,'rgba(255,255,255,.035)');shine.addColorStop(.65,'rgba(255,255,255,0)');shine.addColorStop(1,'rgba(160,220,255,.12)');
-    c.fillStyle=shine;c.fillRect(x,y,w,h);
-    const gloss=c.createRadialGradient(x+w*.25,y+h*.13,0,x+w*.25,y+h*.13,w*.65);
-    gloss.addColorStop(0,'rgba(255,255,255,.32)');gloss.addColorStop(1,'rgba(255,255,255,0)');
-    c.fillStyle=gloss;c.fillRect(x,y,w,h);
-    c.restore();
-    c.save();pathShape(c,x,y,w,h);
-    c.lineWidth=Math.max(1.5,3.2*scale);c.strokeStyle='rgba(235,250,255,'+(.45+state.glow/100*.45)+')';c.shadowColor='rgba('+tr+','+tg+','+tb+',.8)';c.shadowBlur=state.glow*.18*scale;c.stroke();
-    c.shadowBlur=0;c.lineWidth=Math.max(1,1.1*scale);c.strokeStyle='rgba(255,255,255,.8)';c.stroke();
-    c.restore();
-    c.save();c.globalCompositeOperation='screen';c.lineCap='round';
-    c.beginPath();c.moveTo(x+w*.18,y+h*.09);c.quadraticCurveTo(x+w*.45,y+h*.015,x+w*.76,y+h*.13);c.strokeStyle='rgba(255,255,255,'+(.3+state.glow/100*.48)+')';c.lineWidth=Math.max(2,w*.012);c.shadowColor='#bceeff';c.shadowBlur=state.glow*.24*scale;c.stroke();
-    c.beginPath();c.moveTo(x+w*.09,y+h*.28);c.quadraticCurveTo(x+w*.04,y+h*.48,x+w*.10,y+h*.68);c.strokeStyle='rgba(255,255,255,.3)';c.lineWidth=Math.max(1,w*.004);c.stroke();c.restore();
-    if(state.noise>0){const step=Math.max(5,Math.round(18/scale));c.save();c.beginPath();pathShape(c,x,y,w,h);c.clip();c.fillStyle='rgba(255,255,255,'+(state.noise/1000)+')';for(let py=y;py<y+h;py+=step)for(let px=x;px<x+w;px+=step)if(((px*13+py*7)%11)<3)c.fillRect(px,py,Math.max(1,scale),Math.max(1,scale));c.restore();}
-  }
-  function refresh(){
-    const side=Math.max(320,Math.floor(Math.min(wrap.clientWidth*.8,wrap.clientHeight*.84)));
-    draw(side,side);
-    $('emptyHint').style.display=sourceImage?'none':'flex';
-    $('stageMode').textContent=sourceImage?'· Imagem + vidro':'· Fundo transparente';
-    $('dimensionLabel').textContent='Prévia · '+side+' × '+side;
-  }
-  function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2800);}
-  function setVal(id,key){$(id).addEventListener('input',e=>{state[key]=+e.target.value;$(id+'Val').textContent=e.target.value+'%';refresh();});}
-  ['width','height','round','refract','blur','distort','opacity','glow','noise'].forEach(id=>setVal(id,id));
-  $('shapeGrid').addEventListener('click',e=>{const b=e.target.closest('[data-shape]');if(!b)return;state.shape=b.dataset.shape;document.querySelectorAll('.shape-option').forEach(x=>x.classList.toggle('selected',x===b));refresh();});
-  $('imageInput').addEventListener('change',e=>{const file=e.target.files&&e.target.files[0];if(!file)return;const url=URL.createObjectURL(file);const img=new Image();img.onload=()=>{sourceImage=img;$('uploadZone').querySelector('strong').textContent=file.name;URL.revokeObjectURL(url);refresh();toast('Imagem carregada no vidro.');};img.onerror=()=>{URL.revokeObjectURL(url);toast('Não foi possível abrir essa imagem.');};img.src=url;});
-  $('tintColor').addEventListener('input',e=>{state.tint=e.target.value;refresh();});
-  $('clearTint').onclick=()=>{$('tintColor').value='#8edbff';state.tint='#8edbff';refresh();};
-  $('resetBtn').onclick=()=>{Object.assign(state,{shape:'squircle',width:72,height:72,round:28,refract:42,blur:8,distort:35,opacity:32,glow:75,noise:12,tint:'#8edbff'});for(const k of ['width','height','round','refract','blur','distort','opacity','glow','noise']){$(k).value=state[k];$(k+'Val').textContent=state[k]+'%';}document.querySelectorAll('.shape-option').forEach(b=>b.classList.toggle('selected',b.dataset.shape==='squircle'));$('tintColor').value=state.tint;refresh();};
-  $('checkerBtn').onclick=()=>{wrap.classList.toggle('checkerboard');$('checkerBtn').classList.toggle('active');};$('centerBtn').onclick=refresh;$('zoomSelect').onchange=refresh;
-  async function exportPNG(){const size=+$('exportSize').value||4096;try{draw(size,size);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw new Error('PNG');const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='glass-studio-'+size+'x'+size+'.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);toast('PNG '+size+' × '+size+' exportado com transparência.');}catch(err){toast('Falha ao exportar PNG.');}finally{refresh();}}
-  $('exportBtn').onclick=exportPNG;$('exportBtnSide').onclick=exportPNG;
-  window.addEventListener('resize',()=>{clearTimeout(window.__glassResize);window.__glassResize=setTimeout(refresh,120);});
-  let installPrompt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installBtn').hidden=false;});$('installBtn').onclick=async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('installBtn').hidden=true;};
-  if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
-  try{refresh();$('saveState').textContent='● Pronto para criar';}catch(e){console.error(e);toast('Erro ao iniciar o editor: '+e.message);}
+ const $=id=>document.getElementById(id), canvas=$('glassCanvas'),wrap=$('canvasWrap');
+ const gl=canvas.getContext('webgl',{alpha:true, premultipliedAlpha:false, antialias:true, preserveDrawingBuffer:true});
+ const state={shape:0,width:72,height:72,round:28,refract:42,blur:8,distort:35,opacity:32,glow:75,noise:12,tint:'#8edbff'};
+ let image=null,texture=null,program=null,loc={},toastTimer;
+ const vs='attribute vec2 a_pos; varying vec2 v_uv; void main(){v_uv=a_pos*.5+.5; gl_Position=vec4(a_pos,0.,1.);}';
+ const fs=`precision highp float;
+ varying vec2 v_uv;
+ uniform vec2 u_resolution; uniform vec2 u_size; uniform vec2 u_imageSize;
+ uniform float u_shape,u_round,u_refract,u_blur,u_distort,u_opacity,u_glow,u_noise,u_hasImage,u_time;
+ uniform vec3 u_tint; uniform sampler2D u_image;
+ float sdRoundBox(vec2 p,vec2 b,float r){vec2 q=abs(p)-b+r;return length(max(q,0.))-r+min(max(q.x,q.y),0.);}
+ float sdDiamond(vec2 p){return (abs(p.x)+abs(p.y)-1.)*.7071;}
+ float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+ void main(){
+   vec2 p=(v_uv-.5)*2.; vec2 halfSize=u_size*.5;
+   float d;
+   if(u_shape<.5){float r=mix(.08,.48,u_round);d=sdRoundBox(p,halfSize,r*min(halfSize.x,halfSize.y));}
+   else if(u_shape<1.5){d=length(p/halfSize)-1.;}
+   else if(u_shape<2.5){d=sdRoundBox(p,halfSize,.22*min(halfSize.x,halfSize.y));}
+   else {d=sdDiamond(p/max(halfSize,vec2(.001)))*min(halfSize.x,halfSize.y);}
+   float aa=max(1.5/u_resolution.x,1.5/u_resolution.y);
+   float mask=1.-smoothstep(-aa,aa,d);
+   if(mask<.001){gl_FragColor=vec4(0.);return;}
+   vec2 q=p/halfSize;
+   vec2 n=normalize(vec2(q.x/(abs(q.x)+.16),q.y/(abs(q.y)+.16))+.0001);
+   float edge=1.-smoothstep(.0,.16,abs(d));
+   float wave=sin(q.x*8.+u_time*.35)*cos(q.y*7.-u_time*.27);
+   vec2 bend=n*(.004+u_refract*.00024)*(1.+wave*u_distort*.012);
+   vec2 uv=v_uv+bend;
+   vec2 fit=vec2(1.);
+   float ia=u_imageSize.x/max(1.,u_imageSize.y), ca=u_resolution.x/u_resolution.y;
+   if(ia>ca)fit.x=ca/ia;else fit.y=ia/ca;
+   uv=(uv-.5)/fit+.5;
+   vec3 base=vec3(.14,.27,.42);
+   if(u_hasImage>.5){
+     vec2 off=vec2(u_blur*.00042);
+     vec4 tex=texture2D(u_image,clamp(uv,vec2(.002),vec2(.998)));
+     vec4 blur=texture2D(u_image,clamp(uv+vec2(off.x,0.),vec2(.002),vec2(.998)))+
+               texture2D(u_image,clamp(uv-vec2(off.x,0.),vec2(.002),vec2(.998)))+
+               texture2D(u_image,clamp(uv+vec2(0.,off.y),vec2(.002),vec2(.998)))+
+               texture2D(u_image,clamp(uv-vec2(0.,off.y),vec2(.002),vec2(.998)));
+     base=mix(tex.rgb,blur.rgb*.25,clamp(u_blur/30.,0.,.72));
+   } else {
+     base=mix(vec3(.10,.23,.39),vec3(.34,.52,.72),clamp(v_uv.y,0.,1.));
+   }
+   float fresnel=pow(1.-abs(n.y*.28+.72),3.);
+   float spec=pow(max(0.,1.-length(q-vec2(-.34,.42))*1.55),24.)*.95+
+              pow(max(0.,1.-length(q-vec2(.48,-.55))*2.),32.)*.6;
+   float streak=pow(max(0.,1.-abs(q.y+q.x*.2-.62)*17.),14.)*.35;
+   float rim=edge*(.20+u_glow*.018);
+   vec3 color=mix(base,u_tint,.06+u_opacity*.0028);
+   color+=u_tint*(rim+fresnel*.18)+vec3(1.)*(spec+streak)*(.52+u_glow*.006);
+   color+=vec3(.10,.20,.30)*pow(max(0.,1.-abs(d)*3.),3.)*.18;
+   color+=(hash(gl_FragCoord.xy+u_time)-.5)*u_noise*.0018;
+   float alpha=mask*clamp(.40+u_opacity*.0035+edge*(.24+u_glow*.004)+spec*.18,0.,.985);
+   gl_FragColor=vec4(clamp(color,0.,1.),alpha);
+ }`;
+ function shader(type,src){const sh=gl.createShader(type);gl.shaderSource(sh,src);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(sh));return sh;}
+ function init(){
+   if(!gl)throw Error('WebGL não está disponível neste navegador.');
+   program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,vs));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);
+   if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));
+   gl.useProgram(program);const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+   const pos=gl.getAttribLocation(program,'a_pos');gl.enableVertexAttribArray(pos);gl.vertexAttribPointer(pos,2,gl.FLOAT,false,0,0);
+   ['u_resolution','u_size','u_imageSize','u_shape','u_round','u_refract','u_blur','u_distort','u_opacity','u_glow','u_noise','u_hasImage','u_time','u_tint','u_image'].forEach(k=>loc[k]=gl.getUniformLocation(program,k));
+   texture=gl.createTexture();gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,texture);
+   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+   gl.uniform1i(loc.u_image,0);
+ }
+ function rgb(hex){return [parseInt(hex.slice(1,3),16)/255,parseInt(hex.slice(3,5),16)/255,parseInt(hex.slice(5,7),16)/255];}
+ function draw(w,h){
+   const dpr=Math.min(window.devicePixelRatio||1,2),cw=Math.max(1,Math.round(w*dpr)),ch=Math.max(1,Math.round(h*dpr));
+   if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
+   gl.viewport(0,0,cw,ch);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.useProgram(program);
+   gl.uniform2f(loc.u_resolution,cw,ch);gl.uniform2f(loc.u_size,state.width/100,state.height/100);
+   gl.uniform2f(loc.u_imageSize,image?image.width:1,image?image.height:1);
+   gl.uniform1f(loc.u_shape,state.shape);gl.uniform1f(loc.u_round,state.round/50);
+   gl.uniform1f(loc.u_refract,state.refract);gl.uniform1f(loc.u_blur,state.blur);
+   gl.uniform1f(loc.u_distort,state.distort);gl.uniform1f(loc.u_opacity,state.opacity);
+   gl.uniform1f(loc.u_glow,state.glow);gl.uniform1f(loc.u_noise,state.noise);
+   gl.uniform1f(loc.u_hasImage,image?1:0);gl.uniform1f(loc.u_time,performance.now()*.001);
+   gl.uniform3fv(loc.u_tint,rgb(state.tint));gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,texture);
+   if(image)gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,image);
+   else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([100,150,190,255]));
+   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+ }
+ function refresh(){const r=wrap.getBoundingClientRect();draw(Math.max(280,r.width*.8),Math.max(280,r.height*.84));$('emptyHint').style.display=image?'none':'flex';$('stageMode').textContent=image?'· Imagem refratada':'· Vidro líquido';$('dimensionLabel').textContent='Prévia · '+canvas.width+' × '+canvas.height;}
+ function toast(m){const el=$('toast');el.textContent=m;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2800);}
+ function setVal(id){$(id).addEventListener('input',e=>{state[id]=+e.target.value;$(id+'Val').textContent=e.target.value+'%';refresh();});}
+ ['width','height','round','refract','blur','distort','opacity','glow','noise'].forEach(setVal);
+ $('shapeGrid').addEventListener('click',e=>{const b=e.target.closest('[data-shape]');if(!b)return;state.shape=({squircle:0,circle:1,rounded:2,diamond:3})[b.dataset.shape];document.querySelectorAll('.shape-option').forEach(x=>x.classList.toggle('selected',x===b));refresh();});
+ $('imageInput').addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;if(!f.type.startsWith('image/')){toast('Escolha um arquivo de imagem.');return;}const url=URL.createObjectURL(f),im=new Image();im.onload=()=>{image=im;$('uploadZone').querySelector('strong').textContent=f.name;refresh();toast('Imagem carregada.');URL.revokeObjectURL(url);};im.onerror=()=>{URL.revokeObjectURL(url);toast('Não foi possível abrir a imagem.');};im.src=url;});
+ $('tintColor').addEventListener('input',e=>{state.tint=e.target.value;refresh();});$('clearTint').onclick=()=>{$('tintColor').value='#8edbff';state.tint='#8edbff';refresh();};
+ $('resetBtn').onclick=()=>{Object.assign(state,{shape:0,width:72,height:72,round:28,refract:42,blur:8,distort:35,opacity:32,glow:75,noise:12,tint:'#8edbff'});['width','height','round','refract','blur','distort','opacity','glow','noise'].forEach(k=>{$(k).value=state[k];$(k+'Val').textContent=state[k]+'%';});document.querySelectorAll('.shape-option').forEach(b=>b.classList.toggle('selected',b.dataset.shape==='squircle'));$('tintColor').value=state.tint;refresh();};
+ $('checkerBtn').onclick=()=>{wrap.classList.toggle('checkerboard');$('checkerBtn').classList.toggle('active');};$('centerBtn').onclick=refresh;$('zoomSelect').onchange=refresh;
+ async function exportPNG(){const size=+$('exportSize').value||4096;try{draw(size,size);const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));if(!blob)throw Error('Exportação falhou');const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='glass-studio-'+size+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);toast('PNG transparente exportado.');}catch(e){toast('Erro na exportação: '+e.message);}finally{refresh();}}
+ $('exportBtn').onclick=exportPNG;$('exportBtnSide').onclick=exportPNG;
+ window.addEventListener('resize',()=>{clearTimeout(window.__glassResize);window.__glassResize=setTimeout(refresh,100);});
+ let prompt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();prompt=e;$('installBtn').hidden=false;});$('installBtn').onclick=async()=>{if(prompt){prompt.prompt();await prompt.userChoice;prompt=null;}};
+ if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+ try{init();refresh();$('saveState').textContent='● Renderizador WebGL ativo';}catch(e){console.error(e);toast('Falha no renderizador: '+e.message);$('saveState').textContent='● Erro gráfico';}
 })();
